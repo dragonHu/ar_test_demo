@@ -1,0 +1,354 @@
+<html>
+<head>
+<title>Pattern marker example with Three.js</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1">
+<style>
+html,body {
+	margin: 0;
+	padding: 0;
+	width: 100%;
+	text-align: center;
+	overflow-x: hidden;
+}
+.portrait canvas {
+	transform-origin: 0 0;
+	transform: rotate(-90deg) translateX(-100%);
+}
+.desktop canvas {
+ 	transform: scale(-1, 1);
+}
+</style>
+</head>
+<body>
+<!-- <script  src="../vendor/jsartoolkit5/build/artoolkit.min.js"></script> -->
+<script src="../vendor/jsartoolkit5/build/artoolkit.debug.js"></script>
+<script src="../vendor/jsartoolkit5/js/artoolkit.api.js"></script>  
+<script  src="../../vendor/three.js/build/three.js"></script>
+<script  src="../vendor/jsartoolkit5/js/artoolkit.three.js"></script>
+
+<script src="../../js/shaders/ConvolutionShader.js"></script>
+<script src="../../js/shaders/CopyShader.js"></script>
+<script src="../../js/postprocessing/EffectComposer.js"></script>
+<script src="../../js/postprocessing/RenderPass.js"></script>
+<script src="../../js/postprocessing/MaskPass.js"></script>
+<script src="../../js/postprocessing/BloomPass.js"></script>
+<script src="../../js/postprocessing/ShaderPass.js"></script>
+<script src="../../js/Detector.js"></script>
+
+<video id="video" webkit-playsinline style="display:none">
+	<source src="../../js/sintel.mp4" type='video/mp4; codecs="avc1.42E01E, mp4a.40.2"'>
+	<source src="../../js/sintel.ogv" type='video/ogg; codecs="theora, vorbis"'>
+</video>
+
+<script>
+let location_path='https://'+location.host+'/AR.js-master/',bisplay=false,playingtime=Date.now();
+//alert(navigator.getUserMedia);
+window.ARThreeOnLoad = function() {
+	
+	ARController.getUserMediaThreeScene({maxARVideoSize: 960, cameraParam: location_path+'data/data/camera_para.dat', 
+	onSuccess: function(arScene, arController, arCamera) {
+		//document.querySelectorAll('canvas')[0].style.cssText="width:100%;height:650px;";
+		document.body.className = arController.orientation;
+
+		var renderer = new THREE.WebGLRenderer({antialias: true});
+		if (arController.orientation === 'portrait') {
+			var w = (window.innerWidth / arController.videoHeight) * arController.videoWidth;
+			var h = window.innerWidth;
+			renderer.setSize(w, h);
+			renderer.domElement.style.paddingBottom = (w-h) + 'px';
+		} else {
+			if (/Android|mobile|iPad|iPhone/i.test(navigator.userAgent)) {
+				renderer.setSize(window.innerWidth, (window.innerWidth / arController.videoWidth) * arController.videoHeight);
+			} else {
+				renderer.setSize(window.innerWidth/2, window.innerHeight/2);
+				document.body.className += ' desktop';
+			}
+		}
+
+		document.body.insertBefore(renderer.domElement, document.body.firstChild);
+
+		var rotationV = 0;
+		var rotationTarget = 0;
+		var onRenderFcts= [];
+		renderer.domElement.addEventListener('click', function(ev) {
+			ev.preventDefault();
+			console.log('rotationTarget',rotationTarget);
+			rotationTarget += 1;
+		}, false);
+
+		var sphere = new THREE.Mesh(
+			new THREE.SphereGeometry(0.5, 8, 8),
+			new THREE.MeshNormalMaterial(),
+			new THREE.AxisHelper()
+		);
+		sphere.material.shading = THREE.FlatShading;
+		sphere.position.z = 140;
+		sphere.position.x = 180;
+		sphere.position.y = 180;
+		sphere.scale.set(280,280,280);
+
+		var torus = new THREE.Mesh(
+			new THREE.TorusGeometry(0.3, 0.2, 8, 8),
+			new THREE.MeshNormalMaterial()
+		);
+		torus.material.shading = THREE.FlatShading;
+		torus.position.z = 40;
+		torus.position.x = 80;
+		torus.position.y = 80;
+		torus.scale.set(80,80,80);
+		let dae=null;
+
+		arController.loadNFTMarker(location_path+'data/dataNFT/mc/mc', function(markerId) {
+			var markerRoot = arController.createThreeNFTMarker(markerId);
+			//markerRoot.add(mesh);
+			//arScene.scene.add(markerRoot);
+			
+		});
+		//arController.setPatternDetectionMode(artoolkit.AR_TEMPLATE_MATCHING_COLOR_AND_MATRIX);
+	    arController.addEventListener('getNFTMarker', function (ev) {
+	      	//console.log('getNFTMarker marker?', ev);
+	      	//console.log('getNFTMarker');
+	       if(bisplay===false){
+	       		onload();
+	       		bisplay=true;
+	       }
+	       playingtime=Date.now();
+	    });
+
+		function tick() {
+			arScene.process();
+			rotationV += (rotationTarget - sphere.rotation.z) * 0.05;
+			sphere.rotation.z += rotationV;
+			torus.rotation.y += rotationV;
+			rotationV *= 0.8;
+
+			arScene.renderOn(renderer);
+			requestAnimationFrame(tick);
+		};
+
+		tick();
+		
+	}});
+	delete window.ARThreeOnLoad;
+};
+
+function onload(){
+	if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
+
+			var container;
+
+			var camera, scene, renderer;
+
+			var video, texture, material, mesh;
+
+			var composer;
+
+			var mouseX = 0;
+			var mouseY = 0;
+
+			var windowHalfX = window.innerWidth / 2;
+			var windowHalfY = window.innerHeight / 2;
+
+			var cube_count,
+
+				meshes = [],
+				materials = [],
+
+				xgrid = 20,
+				ygrid = 10;
+
+			init();
+			animate();
+
+			function init() {
+
+				container = document.createElement( 'div' );
+				container.style.marginTop="-602px";
+				document.body.appendChild( container );
+
+
+				
+
+				camera = new THREE.PerspectiveCamera( 40, window.innerWidth / window.innerHeight, 1, 10000 );
+				camera.position.z = 500;
+
+				scene = new THREE.Scene();
+				//scene=arScene.scene;
+				var light = new THREE.DirectionalLight( 0xffffff );
+				light.position.set( 0.5, 1, 1 ).normalize();
+				scene.add( light );
+
+				renderer = new THREE.WebGLRenderer( { antialias: false } );
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth/2, window.innerHeight/2);
+				container.appendChild( renderer.domElement );
+
+				video = document.getElementById( 'video' );
+				video.play();
+				setInterval(function(){
+			    if(Date.now()-playingtime>1200){
+			    		container.innerHTML='';
+			    		video.pause();
+			    		bisplay=false;	
+			    	}
+			    },1000);
+
+				texture = new THREE.VideoTexture( video );
+				texture.minFilter = THREE.LinearFilter;
+				texture.magFilter = THREE.LinearFilter;
+				texture.format = THREE.RGBFormat;
+
+				//
+
+				var i, j, ux, uy, ox, oy,
+					geometry,
+					xsize, ysize;
+
+				ux = 1 / xgrid;
+				uy = 1 / ygrid;
+
+				xsize = 480 / xgrid;
+				ysize = 204 / ygrid;
+
+				var parameters = { color: 0xffffff, map: texture };
+
+				cube_count = 0;
+
+				for ( i = 0; i < xgrid; i ++ )
+				for ( j = 0; j < ygrid; j ++ ) {
+
+					ox = i;
+					oy = j;
+
+					geometry = new THREE.BoxGeometry( xsize, ysize, xsize );
+
+					change_uvs( geometry, ux, uy, ox, oy );
+
+					materials[ cube_count ] = new THREE.MeshLambertMaterial( parameters );
+
+					material = materials[ cube_count ];
+
+					material.hue = i/xgrid;
+					material.saturation = 1 - j/ygrid;
+
+					//material.color.setHSL( material.hue, material.saturation, 0.5 );
+
+					mesh = new THREE.Mesh( geometry, material );
+
+					mesh.position.x =   ( i - xgrid/2 ) * xsize;
+					mesh.position.y =   ( j - ygrid/2 ) * ysize;
+					mesh.position.z = 0;
+
+					mesh.scale.x = mesh.scale.y = mesh.scale.z = 1;
+
+					scene.add( mesh );
+
+					mesh.dx = 0.001 * ( 0.5 - Math.random() );
+					mesh.dy = 0.001 * ( 0.5 - Math.random() );
+
+					meshes[ cube_count ] = mesh;
+
+					cube_count += 1;
+					//markerRoot.add(mesh);
+			   		//arScene.scene.add(markerRoot);
+
+				}
+
+				renderer.autoClear = false;
+
+				document.addEventListener( 'mousemove', onDocumentMouseMove, false );
+
+				// postprocessing
+
+				var renderModel = new THREE.RenderPass( scene, camera );
+				var effectBloom = new THREE.BloomPass( 1.3 );
+				var effectCopy = new THREE.ShaderPass( THREE.CopyShader );
+
+				effectCopy.renderToScreen = true;
+
+				composer = new THREE.EffectComposer( renderer );
+
+				composer.addPass( renderModel );
+				composer.addPass( effectBloom );
+				composer.addPass( effectCopy );
+				
+
+				window.addEventListener( 'resize', onWindowResize, false );
+
+			}
+
+			function onWindowResize() {
+
+				windowHalfX = window.innerWidth / 2;
+				windowHalfY = window.innerHeight / 2;
+
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				composer.reset();
+
+			}
+
+			function change_uvs( geometry, unitx, unity, offsetx, offsety ) {
+
+				var faceVertexUvs = geometry.faceVertexUvs[ 0 ];
+
+				for ( var i = 0; i < faceVertexUvs.length; i ++ ) {
+
+					var uvs = faceVertexUvs[ i ];
+
+					for ( var j = 0; j < uvs.length; j ++ ) {
+
+						var uv = uvs[ j ];
+
+						uv.x = ( uv.x + offsetx ) * unitx;
+						uv.y = ( uv.y + offsety ) * unity;
+
+					}
+
+				}
+
+			}
+
+
+			function onDocumentMouseMove(event) {
+
+				mouseX = ( event.clientX - windowHalfX );
+				mouseY = ( event.clientY - windowHalfY ) * 0.3;
+
+			}
+
+			//
+
+			function animate() {
+
+				
+				requestAnimationFrame( animate );
+				render();
+
+			}
+
+			var h, counter = 1;
+
+			function render() {
+
+				var time = Date.now() * 0.00005;
+
+				camera.position.x += ( mouseX - camera.position.x ) * 0.05;
+				camera.position.y += ( - mouseY - camera.position.y ) * 0.05;
+				camera.lookAt( scene.position );
+				renderer.clear();
+				composer.render();
+
+			}
+
+}
+
+if (window.ARController && ARController.getUserMediaThreeScene) {
+	ARThreeOnLoad();
+}
+</script>
+
+</body>
+</html>
